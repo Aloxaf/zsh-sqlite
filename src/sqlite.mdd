@@ -1,0 +1,7 @@
+name=aloxaf/sqlite
+link=dynamic
+load=no
+
+autofeatures="b:zsqlite"
+
+objects="sqlite.o"
