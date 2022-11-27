@@ -9,9 +9,11 @@ ZSH_SQLITE_ZSH_SRC=5.8.1
 autoload -Uz is-at-least
 
 zsh-sqlite-build() {
-  local ret macos nproc
+  emulate -L zsh -o extended_glob
+
+  local ret bundle nproc
   if [[ $OSTYPE == darwin* ]]; then
-    macos=true
+    [[ -n ${module_path[1]}/**/*.bundle(#qN) ]] && bundle=true
     nproc=$(sysctl -n hw.logicalcpu)
   else
     nproc=$(nproc)
@@ -19,7 +21,7 @@ zsh-sqlite-build() {
 
   pushd $ZSH_SQLITE_HOME/zsh/$ZSH_SQLITE_ZSH_SRC
   [[ -f ./configure ]] || ./Util/preconfig
-  LIBS=-lsqlite3 ./configure --disable-gdbm --disable-pcre --without-tcsetpgrp ${macos:+DL_EXT=bundle}
+  LIBS=-lsqlite3 ./configure --disable-gdbm --disable-pcre --without-tcsetpgrp ${bundle:+DL_EXT=bundle}
   make -j$nproc
   ret=$?
   popd
@@ -31,14 +33,16 @@ zsh-sqlite-build() {
 
   pushd $ZSH_SQLITE_HOME/zsh/$ZSH_SQLITE_ZSH_SRC/Src/Modules
   mkdir -p aloxaf
-  mv sqlite.so aloxaf/
-  rm -f *.so
+  mv sqlite.(so|bundle) aloxaf/
+  rm -f *.(so|bundle)
   popd
 
   print -P "%F{green}%BThe module has been built successfully. Please restart zsh to apply it.%f%b"
 }
 
 () {
+  emulate -L zsh -o extended_glob
+
   if is-at-least 5.4.2; then
     ZSH_SQLITE_ZSH_SRC=5.8.1
   fi
