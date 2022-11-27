@@ -53,7 +53,9 @@ autoload -Uz is-at-least
   fi
 
   zmodload aloxaf/sqlite
-  if [[ $SQLITE_MODULE_VERSION != "0.1.0" ]]; then
+  if [[ $SQLITE_MODULE_VERSION != "0.1.1" ]]; then
+    zmodload -u aloxaf/sqlite
     -zsh-sqlite-build $require_version
+    zmodload aloxaf/sqlite
   fi
 }

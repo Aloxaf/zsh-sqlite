@@ -145,11 +145,16 @@ static int bin_zsqlite_exec(char *name, char **args, Options ops, UNUSED(int fun
         return 1;
     }
 
+    char **colnames = calloc(result.collength, sizeof(char *));
     for (int i = 0; i < result.collength; i++) {
-        char var_column[512];
-        sprintf(var_column, "%s_%s", outvar, result.colname[i]);
-        setaparam(var_column, result.coldata[i]);
+        colnames[i] = calloc(512, sizeof(char));
+        sprintf(colnames[i], "%s_%s", outvar, result.colname[i]);
+        setaparam(colnames[i], result.coldata[i]);
     }
+    setaparam(outvar, colnames);
+
+    free(result.coldata);
+    free(result.colname);
 
     return 0;
 }
@@ -195,7 +200,7 @@ int enables_(Module m, int** enables)
 int boot_(UNUSED(Module m))
 {
     if (sqlite_module_version == NULL) {
-        sqlite_module_version = ztrdup("0.1.0");
+        sqlite_module_version = ztrdup("0.1.1");
     }
     return 0;
 }

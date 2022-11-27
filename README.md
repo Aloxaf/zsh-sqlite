@@ -20,6 +20,7 @@ zsqlite_exec DB_VAR OUT_VAR 'CREATE TABLE Person(name TEXT, age INT);'
 zsqlite_exec DB_VAR OUT_VAR 'INSERT INTO Person VALUES ("Alice", 20), ("Bob", 21);'
 zsqlite_exec DB_VAR OUT_VAR 'SELECT * FROM Person;'
 zsqlite_close DB_VAR
-print -l $OUT_VAR_name
-print -l $OUT_VAR_age
+echo $OUT_VAR
+echo $OUT_VAR_name
+echo $OUT_VAR_age
 ```
