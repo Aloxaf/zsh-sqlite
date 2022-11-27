@@ -1,4 +1,4 @@
-name: test
+name: CI
 
 on:
   pull_request:
@@ -8,7 +8,7 @@ on:
 
 jobs:
   test:
-    name: run test
+    name: build and test
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
@@ -27,4 +27,5 @@ jobs:
         run: zsh -fc 'source ./zsh-sqlite.plugin.zsh; zsh-sqlite-build'
 
       - name: test module
+        if: matrix.os == 'ubuntu-latest'
         run: cd test && zsh -f runtests.zsh zsh-sqlite.ztst
