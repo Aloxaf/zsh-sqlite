@@ -24,7 +24,7 @@ void sqlite_result_push(struct sqlite_result *p, int argc, char **argv)
     if (p->capacity == p->length) {
         p->capacity *= 1.5;
         for (int i = 0; i < argc; i++) {
-            p->coldata[i] = reallocarray(p->coldata[i], p->capacity, sizeof(char *));
+            p->coldata[i] = realloc(p->coldata[i], p->capacity * sizeof(char *));
         }
     }
 
