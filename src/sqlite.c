@@ -27,7 +27,11 @@ void sqlite_result_push(struct sqlite_result *p, int argc, char **argv)
     }
 
     for (int i = 0; i < argc; i++) {
-        p->coldata[i][p->length] = metafy(argv[i], -1, META_DUP);
+        if (argv[i] == NULL) {
+            p->coldata[i][p->length] = ztrdup("");
+        } else {
+            p->coldata[i][p->length] = metafy(argv[i], -1, META_DUP);
+        }
     }
     p->length += 1;
 }
@@ -200,4 +204,3 @@ int finish_(UNUSED(Module m))
     fflush(stdout);
     return 0;
 }
-
