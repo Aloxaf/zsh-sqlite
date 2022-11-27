@@ -1,0 +1,29 @@
+%prep
+  source $ZTST_srcdir/../zsh-sqlite.plugin.zsh
+
+%test
+
+ zmodload | grep aloxaf/sqlite
+0:test if loaded
+>aloxaf/sqlite
+
+ zsqlite_open DB_VAR ':memory:'
+ zsqlite_exec DB_VAR OUT_VAR 'CREATE TABLE Person(name TEXT, age INT);'
+ zsqlite_exec DB_VAR OUT_VAR 'INSERT INTO Person VALUES ("Alice", 20), ("Bob", 21);'
+ zsqlite_exec DB_VAR OUT_VAR 'SELECT * FROM Person;'
+ echo $OUT_VAR
+ echo $OUT_VAR_name
+ echo $OUT_VAR_age
+0:test basic function
+>OUT_VAR_name OUT_VAR_age
+>Alice Bob
+>20 21
+
+ zsqlite_exec DB_VAR OUT_VAR 'INSERT INTO Person(name) VALUES("Jack");'
+ zsqlite_exec DB_VAR OUT_VAR 'SELECT * FROM Person WHERE name = "Jack";'
+ zsqlite_close DB_VAR
+ echo $OUT_VAR_name
+ echo $OUT_VAR_age
+0:test empty column
+>Jack
+>

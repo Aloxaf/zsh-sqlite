@@ -1,1 +1,2 @@
 zsh/** linguist-vendored
+test/ztst.zsh linguist-vendored

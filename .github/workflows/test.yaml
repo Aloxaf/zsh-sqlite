@@ -1,0 +1,30 @@
+name: test
+
+on:
+  pull_request:
+  push:
+    branches:
+      - master
+
+jobs:
+  test:
+    name: run test
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+    steps:
+      - name: checkout
+        uses: actions/checkout@v1
+        with:
+          fetch-depth: 1
+
+      - name: install dependencies
+        if: matrix.os == 'ubuntu-latest'
+        run: sudo apt-get install -y zsh libsqlite3-dev libncurses-dev
+
+      - name: build module
+        run: zsh -fc 'source ./zsh-sqlite.plugin.zsh; zsh-sqlite-build'
+
+      - name: test module
+        run: cd test && zsh -f runtests.zsh zsh-sqlite.ztst
