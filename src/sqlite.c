@@ -2,6 +2,8 @@
 #include "sqlite.pro"
 #include <sqlite3.h>
 
+static char *sqlite_module_version;
+
 struct sqlite_result {
     int length;
     int capacity;
@@ -159,7 +161,9 @@ static struct builtin bintab[] = {
     BUILTIN("zsqlite_close", 0, bin_zsqlite_close, 0, -1, 0, "fv", NULL),
 };
 
-static struct paramdef patab[] = {};
+static struct paramdef patab[] = {
+    STRPARAMDEF("SQLITE_MODULE_VERSION", &sqlite_module_version),
+};
 
 // clang-format off
 static struct features module_features = {
@@ -190,6 +194,9 @@ int enables_(Module m, int** enables)
 
 int boot_(UNUSED(Module m))
 {
+    if (sqlite_module_version == NULL) {
+        sqlite_module_version = ztrdup("0.1.0");
+    }
     return 0;
 }
 
