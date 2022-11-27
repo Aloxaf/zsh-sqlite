@@ -1,11 +1,15 @@
 %prep
+  setopt multibyte
+  unset -m LC_\*
+  LANG=en_US.UTF-8
   source $ZTST_srcdir/../zsh-sqlite.plugin.zsh
 
 %test
 
  zmodload | grep aloxaf/sqlite
-0:test if loaded
+0:load
 >aloxaf/sqlite
+
 
  zsqlite_open DB_VAR ':memory:'
  zsqlite_exec DB_VAR OUT_VAR 'CREATE TABLE Person(name TEXT, age INT);'
@@ -14,16 +18,48 @@
  echo $OUT_VAR
  echo $OUT_VAR_name
  echo $OUT_VAR_age
-0:test basic function
+0:basic function
 >OUT_VAR_name OUT_VAR_age
 >Alice Bob
 >20 21
 
+
  zsqlite_exec DB_VAR OUT_VAR 'INSERT INTO Person(name) VALUES("Jack");'
  zsqlite_exec DB_VAR OUT_VAR 'SELECT * FROM Person WHERE name = "Jack";'
- zsqlite_close DB_VAR
  echo $OUT_VAR_name
  echo $OUT_VAR_age
-0:test empty column
+0:empty column
 >Jack
 >
+
+
+ for i in {1..10000}; do
+   zsqlite_exec DB_VAR OUT_VAR "INSERT INTO Person VALUES(\"Tim\", $i);"
+ done
+ zsqlite_exec DB_VAR OUT_VAR 'SELECT * FROM Person WHERE name = "Tim";'
+ echo $#OUT_VAR_age
+0:long results
+>10000
+
+
+ zsqlite_exec DB_VAR OUT_VAR 'SELECT * FROM Person WHERE;'
+1:bad SQL
+?(eval):zsqlite_exec:1: failed to execute sql: near ";": syntax error
+
+
+ zsqlite_exec DB_VAR OUT_VAR 'CREATE TABLE 用户(姓名 TEXT, 年龄 INT);'
+ zsqlite_exec DB_VAR OUT_VAR 'INSERT INTO 用户 VALUES("小明", 6);'
+ zsqlite_exec DB_VAR OUT_VAR 'SELECT * FROM 用户;'
+ echo $OUT_VAR
+ echo $OUT_VAR_姓名
+ echo $OUT_VAR_年龄
+0:Chinese
+>OUT_VAR_姓名 OUT_VAR_年龄
+>小明
+>6
+
+
+ zsqlite_close DB_VAR
+ zsqlite_exec DB_VAR OUT_VAR 'CREATE TABLE Person(name TEXT, age INT);'
+1:access a closed database
+?(eval):zsqlite_exec:2: failed to get handle from variable DB_VAR

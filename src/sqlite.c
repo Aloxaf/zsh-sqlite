@@ -32,7 +32,7 @@ void sqlite_result_push(struct sqlite_result *p, int argc, char **argv)
         if (argv[i] == NULL) {
             p->coldata[i][p->length] = ztrdup("");
         } else {
-            p->coldata[i][p->length] = metafy(argv[i], -1, META_DUP);
+            p->coldata[i][p->length] = ztrdup_metafy(argv[i]);
         }
     }
     p->length += 1;
@@ -45,7 +45,7 @@ static int sqlite_callback(void *output, int argc, char **argv, char **colname)
     if (p->colname == NULL) {
         p->colname = calloc(argc, sizeof(char *));
         for (int i = 0; i < argc; i++) {
-            p->colname[i] = metafy(colname[i], -1, META_DUP);
+            p->colname[i] = ztrdup_metafy(colname[i]);
         }
         p->collength = argc;
     }
@@ -134,7 +134,7 @@ static int bin_zsqlite_exec(char *name, char **args, Options ops, UNUSED(int fun
     }
 
     char *outvar = args[1];
-    char *sql = args[2];
+    char *sql = unmetafy(args[2], NULL);
 
     struct sqlite_result result = { 0, 0, 0, NULL, NULL};
     char *errmsg;
@@ -150,6 +150,7 @@ static int bin_zsqlite_exec(char *name, char **args, Options ops, UNUSED(int fun
         colnames[i] = calloc(512, sizeof(char));
         sprintf(colnames[i], "%s_%s", outvar, result.colname[i]);
         setaparam(colnames[i], result.coldata[i]);
+        free(result.colname[i]);
     }
     setaparam(outvar, colnames);
 
