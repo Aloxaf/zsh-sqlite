@@ -5,26 +5,32 @@
 static char *sqlite_module_version;
 
 struct sqlite_result {
+    // the count of result
     int length;
+    // the total capacity of coldata
     int capacity;
+    // the number of column
     int collength;
+    // an array of column names, ends in NULL
     char **colname;
+    // A 2d array of column data, ends in NULL
     char ***coldata;
 };
 
 void sqlite_result_push(struct sqlite_result *p, int argc, char **argv)
 {
     if (p->coldata == NULL) {
-        p->coldata = calloc(argc, sizeof(char **));
+        p->coldata = zshcalloc(argc * sizeof(char **));
         for (int i = 0; i < argc; i++) {
-            p->coldata[i] = calloc(4, sizeof(char *));
+            p->coldata[i] = zshcalloc(4 * sizeof(char *));
         }
         p->capacity = 4;
     }
-    if (p->capacity == p->length) {
+    // Why +1? Because the last element should be NULL
+    if (p->capacity == p->length + 1) {
         p->capacity *= 1.5;
         for (int i = 0; i < argc; i++) {
-            p->coldata[i] = realloc(p->coldata[i], p->capacity * sizeof(char *));
+            p->coldata[i] = zrealloc(p->coldata[i], p->capacity * sizeof(char *));
         }
     }
 
@@ -34,6 +40,8 @@ void sqlite_result_push(struct sqlite_result *p, int argc, char **argv)
         } else {
             p->coldata[i][p->length] = ztrdup_metafy(argv[i]);
         }
+        // ensure last element is NULL
+        p->coldata[i][p->length + 1] = NULL;
     }
     p->length += 1;
 }
@@ -43,7 +51,7 @@ static int sqlite_callback(void *output, int argc, char **argv, char **colname)
     struct sqlite_result *p = output;
 
     if (p->colname == NULL) {
-        p->colname = calloc(argc, sizeof(char *));
+        p->colname = zshcalloc((argc + 1) * sizeof(char *));
         for (int i = 0; i < argc; i++) {
             p->colname[i] = ztrdup_metafy(colname[i]);
         }
@@ -145,9 +153,9 @@ static int bin_zsqlite_exec(char *name, char **args, Options ops, UNUSED(int fun
         return 1;
     }
 
-    char **colnames = calloc(result.collength, sizeof(char *));
+    char **colnames = zshcalloc((result.collength + 1) * sizeof(char *));
     for (int i = 0; i < result.collength; i++) {
-        colnames[i] = calloc(512, sizeof(char));
+        colnames[i] = zshcalloc(512 * sizeof(char));
         sprintf(colnames[i], "%s_%s", outvar, result.colname[i]);
         setaparam(colnames[i], result.coldata[i]);
         free(result.colname[i]);
