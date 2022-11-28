@@ -33,8 +33,12 @@ zsqlite-build() {
   # build zsh
   # TODO: should I use `pkg-config --libs sqlite3` here?
   cd -q ./zsh/$zsh_version
-  [[ -f ./configure ]] || ./Util/preconfig
-  LIBS=-lsqlite3 ./configure --disable-gdbm --disable-pcre --without-tcsetpgrp --prefix=/tmp/zsh-sqlite ${bundle:+DL_EXT=bundle}
+  if [[ ! -f ./configure ]]; then
+    ./Util/preconfig
+  fi
+  if [[ ! -f ./Makefile ]]; then
+    LIBS=-lsqlite3 ./configure --disable-gdbm --disable-pcre --without-tcsetpgrp --prefix=/tmp/zsh-sqlite ${bundle:+DL_EXT=bundle}
+  fi
   make -j$nproc
   ret=$?
 
@@ -70,7 +74,7 @@ zsqlite-build() {
   fi
 
   zmodload aloxaf/sqlite
-  if [[ $SQLITE_MODULE_VERSION != "0.2.0" ]]; then
+  if [[ $SQLITE_MODULE_VERSION != "0.2.1" ]]; then
     print -P "%F{yellow}%BThe module is outdate. Please rebuild it with 'zsqlite-build'%f%b"
     return 1
   fi
