@@ -24,7 +24,7 @@ jobs:
         run: sudo apt-get install -y zsh libsqlite3-dev libncurses-dev
 
       - name: build module
-        run: zsh -fc 'source ./zsh-sqlite.plugin.zsh; zsh-sqlite-build'
+        run: zsh -fc 'source ./zsh-sqlite.plugin.zsh; zsqlite-build'
 
       - name: test module
         if: matrix.os == 'ubuntu-latest'

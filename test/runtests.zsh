@@ -9,7 +9,7 @@ emulate zsh
 
 integer success failure skipped retval
 for file in ${@:1}; do
-  zsh +Z -f ./ztst.zsh $file
+  ${ZTST_exe:-zsh} +Z -f ./ztst.zsh $file
   retval=$?
   if (( $retval == 2 )); then
     (( skipped++ ))

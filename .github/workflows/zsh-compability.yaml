@@ -1,0 +1,31 @@
+name: Compability
+
+on:
+  pull_request:
+  push:
+    branches:
+      - master
+
+jobs:
+  check:
+    name: check zsh compability
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        zsh: [5.8.1, 5.4.2, 5.0.2]
+    steps:
+      - name: checkout
+        uses: actions/checkout@v1
+        with:
+          fetch-depth: 1
+
+      - name: install dependencies
+        run: sudo apt-get install -y zsh libsqlite3-dev libncurses-dev yodl
+
+      - name: build zsh & module
+        run: |
+          zsh -fc 'source ./zsh-sqlite.plugin.zsh; zsqlite-build ${{ matrix.zsh }}'
+          cd zsh/${{ matrix.zsh }} && make install
+
+      - name: test module
+        run: cd test && ZTST_exe=/tmp/zsh-sqlite/bin/zsh zsh -f runtests.zsh zsh-sqlite.ztst
