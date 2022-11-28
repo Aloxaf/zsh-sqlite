@@ -1,7 +1,0 @@
-name=zsh/param/private
-link=dynamic
-load=yes
-
-autofeatures="b:private"
-
-objects="param_private.o"

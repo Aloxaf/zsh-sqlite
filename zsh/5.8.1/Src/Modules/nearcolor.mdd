@@ -1,5 +1,0 @@
-name=zsh/nearcolor
-link=dynamic
-load=no
-
-objects="nearcolor.o"
