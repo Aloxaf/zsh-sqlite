@@ -95,19 +95,16 @@ static int bin_zsqlite_open(char *name, char **args, Options ops, UNUSED(int fun
         return 1;
     }
 
-    const char *varname = args[0];
-    const char *filename = unmeta(args[1]);
-
     sqlite3 *pdb;
-    if (sqlite3_open(filename, &pdb)) {
-        zwarnnam(name, "failed to open database at %s", filename);
+    if (sqlite3_open(unmeta(args[1]), &pdb)) {
+        zwarnnam(name, "failed to open database at %s", args[1]);
         return 1;
     }
 
     char buf[21];
     sprintf(buf, "%ld", (long)pdb);
 
-    setsparam(varname, ztrdup(buf));
+    setsparam(args[0], ztrdup(buf));
 
     return 0;
 }
@@ -149,9 +146,8 @@ static int bin_zsqlite_exec(char *name, char **args, Options ops, int func)
             return 1;
         }
     } else {
-        char *filename = unmeta(args[0]);
-        if (sqlite3_open(filename, &pdb)) {
-            zwarnnam(name, "failed to open database at %s", filename);
+        if (sqlite3_open(unmeta(args[0]), &pdb)) {
+            zwarnnam(name, "failed to open database at %s", args[0]);
             return 1;
         }
     }
@@ -161,9 +157,10 @@ static int bin_zsqlite_exec(char *name, char **args, Options ops, int func)
     struct sqlite_result result = { 0, 0, 0, NULL, NULL};
     char *errmsg;
     if (sqlite3_exec(pdb, sql, sqlite_callback, &result, &errmsg) != SQLITE_OK) {
-        // TODO: should I metafy errmsg here?
-        zwarnnam(name, "failed to execute sql: %s", errmsg);
+        char *merrmsg = ztrdup_metafy(errmsg);
+        zwarnnam(name, "failed to execute sql: %s", merrmsg);
         sqlite3_free(errmsg);
+        free(merrmsg);
         return 1;
     }
 
@@ -178,9 +175,10 @@ static int bin_zsqlite_exec(char *name, char **args, Options ops, int func)
         }
         setaparam(outvar, colnames);
     } else {
-        // TODO: unmeta sep
         char *sep = OPT_ISSET(ops, 's') ? OPT_ARG(ops, 's') : "|";
         bool header = OPT_ISSET(ops, 'h');
+
+        unmetafy(sep, NULL);
 
         for (int i = 0; i < result.collength; i++) {
             if (header) {
@@ -218,7 +216,7 @@ static struct builtin bintab[] = {
     BUILTIN("zsqlite_open", 0, bin_zsqlite_open, 2, -1, 0, NULL, NULL),
     BUILTIN("zsqlite_exec", 0, bin_zsqlite_exec, 2, -1, BIN_ZSQLITE_EXEC, "hs:v:", NULL),
     BUILTIN("zsqlite_close", 0, bin_zsqlite_close, 1, -1, 0, NULL, NULL),
-    BUILTIN("zsqlite", 0, bin_zsqlite_exec, 2, -1, BIN_ZSQLITE, NULL, NULL),
+    BUILTIN("zsqlite", 0, bin_zsqlite_exec, 2, -1, BIN_ZSQLITE, "hs:v:", NULL),
 };
 
 static struct paramdef patab[] = {

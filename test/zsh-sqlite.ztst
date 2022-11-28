@@ -72,6 +72,10 @@
 1:access a closed database
 ?(eval):zsqlite_exec:2: failed to get handle from variable DB
 
- zsqlite / 'SELECT 1'
+ zsqlite /错误 'SELECT 1'
 1:invalid database
-?(eval):zsqlite:1: failed to open database at /
+?(eval):zsqlite:1: failed to open database at /错误
+
+ zsqlite ':memory:' 'S错误'
+1:invalid command
+?(eval):zsqlite:1: failed to execute sql: near "S错误": syntax error
