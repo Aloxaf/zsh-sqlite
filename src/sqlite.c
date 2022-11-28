@@ -153,14 +153,21 @@ static int bin_zsqlite_exec(char *name, char **args, Options ops, UNUSED(int fun
         return 1;
     }
 
-    char **colnames = zshcalloc((result.collength + 1) * sizeof(char *));
-    for (int i = 0; i < result.collength; i++) {
-        colnames[i] = zshcalloc(512 * sizeof(char));
-        sprintf(colnames[i], "%s_%s", outvar, result.colname[i]);
-        setaparam(colnames[i], result.coldata[i]);
-        free(result.colname[i]);
+    // TODO: if outvar == '-', there is not need to specify callback function at all
+    if (!ztrcmp(outvar, "-")) {
+        for (int i = 0; i < result.collength; i++) {
+            free(result.colname[i]);
+        }
+    } else {
+        char **colnames = zshcalloc((result.collength + 1) * sizeof(char *));
+        for (int i = 0; i < result.collength; i++) {
+            colnames[i] = zshcalloc(512 * sizeof(char));
+            sprintf(colnames[i], "%s_%s", outvar, result.colname[i]);
+            setaparam(colnames[i], result.coldata[i]);
+            free(result.colname[i]);
+        }
+        setaparam(outvar, colnames);
     }
-    setaparam(outvar, colnames);
 
     free(result.coldata);
     free(result.colname);
@@ -209,7 +216,7 @@ int enables_(Module m, int** enables)
 int boot_(UNUSED(Module m))
 {
     if (sqlite_module_version == NULL) {
-        sqlite_module_version = ztrdup("0.1.1");
+        sqlite_module_version = ztrdup("0.1.2");
     }
     return 0;
 }
