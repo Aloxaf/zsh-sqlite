@@ -31,12 +31,27 @@ zsqlite-build
 ## Usage
 
 ```zsh
-zsqlite_open DB_VAR /tmp/sqlite.db
-zsqlite_exec DB_VAR - 'CREATE TABLE Person(name TEXT, age INT);'
-zsqlite_exec DB_VAR - 'INSERT INTO Person VALUES ("Alice", 20), ("Bob", 21);'
-zsqlite_exec DB_VAR OUT_VAR 'SELECT * FROM Person;'
-zsqlite_close DB_VAR
-echo $OUT_VAR
-echo $OUT_VAR_name
-echo $OUT_VAR_age
+> zsqlite_open DB ':memory:'
+> zsqlite_exec DB 'CREATE TABLE Person(name TEXT, age INT)'
+> zsqlite_exec DB 'INSERT INTO Person VALUES ("Alice", 20), ("Bob", 21)'
+> zsqlite_exec DB 'SELECT * FROM Person'
+Alice|20
+Bob|21
+
+> zsqlite_exec -s ":" -h DB 'SELECT * FROM Person'
+name:age
+Alice:20
+Bob:21
+
+> zsqlite_exec -v OUT_VAR DB 'SELECT * FROM Person'
+> echo $OUT_VAR
+OUT_VAR_name OUT_VAR_age
+
+> echo $OUT_VAR_name
+Alice Bob
+
+> echo $OUT_VAR_age
+20 21
+
+> zsqlite_close DB
 ```

@@ -82,7 +82,7 @@ sqlite3* gethandle(char *name, char *varname)
 }
 
 
-// Usage: zsqlite_open HANDLE ./sqlite.db
+// Usage: zsqlite_open DB ./sqlite.db
 static int bin_zsqlite_open(char *name, char **args, Options ops, UNUSED(int func))
 {
     if (args[0] == NULL || args[1] == NULL) {
@@ -107,7 +107,7 @@ static int bin_zsqlite_open(char *name, char **args, Options ops, UNUSED(int fun
     return 0;
 }
 
-// Usage: zsqlite_close HANDLE
+// Usage: zsqlite_close DB
 static int bin_zsqlite_close(char *name, char **args, Options ops, UNUSED(int func))
 {
     if (args[0] == NULL) {
@@ -127,10 +127,13 @@ static int bin_zsqlite_close(char *name, char **args, Options ops, UNUSED(int fu
     unsetparam(varname);
 }
 
-// Usage: zsqlite_exec HANDLE OUTVAR 'SELECT 1;'
+// Usage:
+// zsqlite_exec DB 'SELECT 1'
+// zsqlite_exec DB -v out_var 'SELECT 1'
+// zsqlite_exec DB -s ':' -h 'SELECT 1'
 static int bin_zsqlite_exec(char *name, char **args, Options ops, UNUSED(int func))
 {
-    if (args[0] == NULL || args[1] == NULL || args[2] == NULL) {
+    if (args[0] == NULL || args[1] == NULL) {
         zwarnnam(name, "too few arguments");
         return 1;
     }
@@ -141,8 +144,7 @@ static int bin_zsqlite_exec(char *name, char **args, Options ops, UNUSED(int fun
         return 1;
     }
 
-    char *outvar = args[1];
-    char *sql = unmetafy(args[2], NULL);
+    char *sql = unmetafy(args[1], NULL);
 
     struct sqlite_result result = { 0, 0, 0, NULL, NULL};
     char *errmsg;
@@ -153,12 +155,8 @@ static int bin_zsqlite_exec(char *name, char **args, Options ops, UNUSED(int fun
         return 1;
     }
 
-    // TODO: if outvar == '-', there is not need to specify callback function at all
-    if (!ztrcmp(outvar, "-")) {
-        for (int i = 0; i < result.collength; i++) {
-            free(result.colname[i]);
-        }
-    } else {
+    if (OPT_ISSET(ops, 'v')) {
+        char *outvar = OPT_ARG(ops, 'v');
         char **colnames = zshcalloc((result.collength + 1) * sizeof(char *));
         for (int i = 0; i < result.collength; i++) {
             colnames[i] = zshcalloc(512 * sizeof(char));
@@ -167,6 +165,34 @@ static int bin_zsqlite_exec(char *name, char **args, Options ops, UNUSED(int fun
             free(result.colname[i]);
         }
         setaparam(outvar, colnames);
+    } else {
+        // TODO: unmeta sep
+        char *sep = OPT_ISSET(ops, 's') ? OPT_ARG(ops, 's') : "|";
+        bool header = OPT_ISSET(ops, 'h');
+
+        for (int i = 0; i < result.collength; i++) {
+            if (header) {
+                unmetafy(result.colname[i], NULL);
+                printf("%s%s", i == 0 ? "" : sep, result.colname[i]);
+            }
+            free(result.colname[i]);
+        }
+        if (header) {
+            putchar('\n');
+        }
+
+        for (int i = 0; i < result.length; i++) {
+            for (int j = 0; j < result.collength; j++) {
+                unmetafy(result.coldata[j][i], NULL);
+                printf("%s%s", j == 0 ? "" : sep, result.coldata[j][i]);
+            }
+            putchar('\n');
+        }
+        for (int i = 0; i < result.collength; i++) {
+            if (result.coldata[i]) {
+                freearray(result.coldata[i]);
+            }
+        }
     }
 
     free(result.coldata);
@@ -177,9 +203,9 @@ static int bin_zsqlite_exec(char *name, char **args, Options ops, UNUSED(int fun
 
 
 static struct builtin bintab[] = {
-    BUILTIN("zsqlite_open", 0, bin_zsqlite_open, 0, -1, 0, "f", NULL),
-    BUILTIN("zsqlite_exec", 0, bin_zsqlite_exec, 0, -1, 0, "fv", NULL),
-    BUILTIN("zsqlite_close", 0, bin_zsqlite_close, 0, -1, 0, "fv", NULL),
+    BUILTIN("zsqlite_open", 0, bin_zsqlite_open, 2, -1, 0, NULL, NULL),
+    BUILTIN("zsqlite_exec", 0, bin_zsqlite_exec, 2, -1, 0, "hs:v:", NULL),
+    BUILTIN("zsqlite_close", 0, bin_zsqlite_close, 1, -1, 0, NULL, NULL),
 };
 
 static struct paramdef patab[] = {
@@ -216,7 +242,7 @@ int enables_(Module m, int** enables)
 int boot_(UNUSED(Module m))
 {
     if (sqlite_module_version == NULL) {
-        sqlite_module_version = ztrdup("0.1.2");
+        sqlite_module_version = ztrdup("0.2.0");
     }
     return 0;
 }

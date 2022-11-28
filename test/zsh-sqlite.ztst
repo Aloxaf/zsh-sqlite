@@ -11,10 +11,10 @@
 >aloxaf/sqlite
 
 
- zsqlite_open DB_VAR ':memory:'
- zsqlite_exec DB_VAR OUT_VAR 'CREATE TABLE Person(name TEXT, age INT);'
- zsqlite_exec DB_VAR OUT_VAR 'INSERT INTO Person VALUES ("Alice", 20), ("Bob", 21);'
- zsqlite_exec DB_VAR OUT_VAR 'SELECT * FROM Person;'
+ zsqlite_open DB ':memory:'
+ zsqlite_exec DB 'CREATE TABLE Person(name TEXT, age INT)'
+ zsqlite_exec DB 'INSERT INTO Person VALUES ("Alice", 20), ("Bob", 21)'
+ zsqlite_exec -v OUT_VAR DB 'SELECT * FROM Person'
  echo $OUT_VAR
  echo $OUT_VAR_name
  echo $OUT_VAR_age
@@ -23,9 +23,15 @@
 >Alice Bob
 >20 21
 
+ zsqlite_exec -h -s ":" DB 'SELECT * FROM Person'
+0:direct output
+>name:age
+>Alice:20
+>Bob:21
 
- zsqlite_exec DB_VAR OUT_VAR 'INSERT INTO Person(name) VALUES("Jack");'
- zsqlite_exec DB_VAR OUT_VAR 'SELECT * FROM Person WHERE name = "Jack";'
+
+ zsqlite_exec DB 'INSERT INTO Person(name) VALUES("Jack")'
+ zsqlite_exec -v OUT_VAR DB 'SELECT * FROM Person WHERE name = "Jack"'
  echo $OUT_VAR_name
  echo $OUT_VAR_age
 0:empty column
@@ -34,32 +40,34 @@
 
 
  for i in {1..10000}; do
-   zsqlite_exec DB_VAR OUT_VAR "INSERT INTO Person VALUES(\"Tim\", $i);"
+   zsqlite_exec DB "INSERT INTO Person VALUES(\"Tim\", $i)"
  done
- zsqlite_exec DB_VAR OUT_VAR 'SELECT * FROM Person WHERE name = "Tim";'
+ zsqlite_exec -v OUT_VAR DB 'SELECT * FROM Person WHERE name = "Tim"'
  echo $#OUT_VAR_age
 0:long results
 >10000
 
 
- zsqlite_exec DB_VAR OUT_VAR 'SELECT * FROM Person WHERE;'
+ zsqlite_exec -v OUT_VAR DB 'SELECT * FROM Person WHERE;'
 1:bad SQL
 ?(eval):zsqlite_exec:1: failed to execute sql: near ";": syntax error
 
 
- zsqlite_exec DB_VAR OUT_VAR 'CREATE TABLE 用户(姓名 TEXT, 年龄 INT);'
- zsqlite_exec DB_VAR OUT_VAR 'INSERT INTO 用户 VALUES("小明", 6);'
- zsqlite_exec DB_VAR OUT_VAR 'SELECT * FROM 用户;'
+ zsqlite_exec DB 'CREATE TABLE 用户(姓名 TEXT, 年龄 INT)'
+ zsqlite_exec DB 'INSERT INTO 用户 VALUES("小明", 6)'
+ zsqlite_exec DB 'SELECT * FROM 用户'
+ zsqlite_exec -v OUT_VAR DB 'SELECT * FROM 用户'
  echo $OUT_VAR
  echo $OUT_VAR_姓名
  echo $OUT_VAR_年龄
 0:Chinese
+>小明|6
 >OUT_VAR_姓名 OUT_VAR_年龄
 >小明
 >6
 
 
- zsqlite_close DB_VAR
- zsqlite_exec DB_VAR OUT_VAR 'CREATE TABLE Person(name TEXT, age INT);'
+ zsqlite_close DB
+ zsqlite_exec DB 'CREATE TABLE Person(name TEXT, age INT)'
 1:access a closed database
-?(eval):zsqlite_exec:2: failed to get handle from variable DB_VAR
+?(eval):zsqlite_exec:2: failed to get handle from variable DB
