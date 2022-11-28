@@ -31,6 +31,9 @@ zsqlite-build
 ## Usage
 
 ```zsh
+> zsqlite ':memory:' 'SELECT 1'
+1
+
 > zsqlite_open DB ':memory:'
 > zsqlite_exec DB 'CREATE TABLE Person(name TEXT, age INT)'
 > zsqlite_exec DB 'INSERT INTO Person VALUES ("Alice", 20), ("Bob", 21)'

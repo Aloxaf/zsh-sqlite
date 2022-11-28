@@ -2,6 +2,11 @@
 #include "sqlite.pro"
 #include <sqlite3.h>
 
+enum {
+    BIN_ZSQLITE_EXEC,
+    BIN_ZSQLITE,
+};
+
 static char *sqlite_module_version;
 
 struct sqlite_result {
@@ -131,17 +136,24 @@ static int bin_zsqlite_close(char *name, char **args, Options ops, UNUSED(int fu
 // zsqlite_exec DB 'SELECT 1'
 // zsqlite_exec DB -v out_var 'SELECT 1'
 // zsqlite_exec DB -s ':' -h 'SELECT 1'
-static int bin_zsqlite_exec(char *name, char **args, Options ops, UNUSED(int func))
+static int bin_zsqlite_exec(char *name, char **args, Options ops, int func)
 {
     if (args[0] == NULL || args[1] == NULL) {
         zwarnnam(name, "too few arguments");
         return 1;
     }
 
-    char *varname = args[0];
-    sqlite3 *pdb = gethandle(name, varname);
-    if (pdb == NULL) {
-        return 1;
+    sqlite3 *pdb = NULL;
+    if (func == BIN_ZSQLITE_EXEC) {
+        if ((pdb = gethandle(name, args[0])) == NULL) {
+            return 1;
+        }
+    } else {
+        char *filename = unmeta(args[0]);
+        if (sqlite3_open(filename, &pdb)) {
+            zwarnnam(name, "failed to open database at %s", filename);
+            return 1;
+        }
     }
 
     char *sql = unmetafy(args[1], NULL);
@@ -204,8 +216,9 @@ static int bin_zsqlite_exec(char *name, char **args, Options ops, UNUSED(int fun
 
 static struct builtin bintab[] = {
     BUILTIN("zsqlite_open", 0, bin_zsqlite_open, 2, -1, 0, NULL, NULL),
-    BUILTIN("zsqlite_exec", 0, bin_zsqlite_exec, 2, -1, 0, "hs:v:", NULL),
+    BUILTIN("zsqlite_exec", 0, bin_zsqlite_exec, 2, -1, BIN_ZSQLITE_EXEC, "hs:v:", NULL),
     BUILTIN("zsqlite_close", 0, bin_zsqlite_close, 1, -1, 0, NULL, NULL),
+    BUILTIN("zsqlite", 0, bin_zsqlite_exec, 2, -1, BIN_ZSQLITE, NULL, NULL),
 };
 
 static struct paramdef patab[] = {
@@ -242,7 +255,7 @@ int enables_(Module m, int** enables)
 int boot_(UNUSED(Module m))
 {
     if (sqlite_module_version == NULL) {
-        sqlite_module_version = ztrdup("0.2.0");
+        sqlite_module_version = ztrdup("0.2.1");
     }
     return 0;
 }
