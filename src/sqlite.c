@@ -161,6 +161,9 @@ static int bin_zsqlite_exec(char *name, char **args, Options ops, int func)
         zwarnnam(name, "failed to execute sql: %s", merrmsg);
         sqlite3_free(errmsg);
         free(merrmsg);
+        if (func == BIN_ZSQLITE) {
+            sqlite3_close(pdb);
+        }
         return 1;
     }
 
@@ -203,6 +206,10 @@ static int bin_zsqlite_exec(char *name, char **args, Options ops, int func)
                 freearray(result.coldata[i]);
             }
         }
+    }
+
+    if (func == BIN_ZSQLITE) {
+        sqlite3_close(pdb);
     }
 
     free(result.coldata);
@@ -253,7 +260,7 @@ int enables_(Module m, int** enables)
 int boot_(UNUSED(Module m))
 {
     if (sqlite_module_version == NULL) {
-        sqlite_module_version = ztrdup("0.2.1");
+        sqlite_module_version = ztrdup("0.2.2");
     }
     return 0;
 }
