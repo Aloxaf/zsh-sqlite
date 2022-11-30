@@ -2,6 +2,6 @@ name=aloxaf/sqlite
 link=dynamic
 load=no
 
-autofeatures="b:zsqlite_open b:sqlite_exec b:sqlite_close"
+autofeatures="b:zsqlite b:zsqlite_open b:sqlite_exec b:sqlite_close"
 
 objects="sqlite.o"

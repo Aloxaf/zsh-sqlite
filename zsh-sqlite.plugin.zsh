@@ -74,7 +74,7 @@ zsqlite-build() {
   fi
 
   zmodload aloxaf/sqlite
-  if [[ $SQLITE_MODULE_VERSION != "0.2.2" ]]; then
+  if [[ $SQLITE_MODULE_VERSION != "0.2.3" ]]; then
     print -P "%F{yellow}%BThe module is outdate. Please rebuild it with 'zsqlite-build'%f%b"
     return 1
   fi
