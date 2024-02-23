@@ -277,7 +277,7 @@ static int bin_zsqlite_exec(char *name, char **args, Options ops, int func)
 
 static struct builtin bintab[] = {
     BUILTIN("zsqlite_open", 0, bin_zsqlite_open, 2, 2, 0, "t:r", NULL),
-    BUILTIN("zsqlite_exec", 0, bin_zsqlite_exec, 2, 2, BIN_ZSQLITE_EXEC, "hs:v:", NULL),
+    BUILTIN("zsqlite_exec", 0, bin_zsqlite_exec, 2, 2, BIN_ZSQLITE_EXEC, "hs:v:q", NULL),
     BUILTIN("zsqlite_close", 0, bin_zsqlite_close, 1, 1, 0, NULL, NULL),
     BUILTIN("zsqlite", 0, bin_zsqlite_exec, 2, 2, BIN_ZSQLITE, "hs:v:t:rq", NULL),
 };
