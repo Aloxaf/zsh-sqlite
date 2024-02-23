@@ -99,6 +99,26 @@ static sqlite3* gethandle(char *name, char *varname)
     return pdb;
 }
 
+/// Unmetafy and output a string, quoted if contains special characters
+static int quotedputs(char *s, FILE *stream)
+{
+    unmetafy(s, NULL);
+    for (; *s; s++) {
+        switch (*s) {
+            case '\n':
+                putc('\\', stream);
+                putc('n', stream);
+                break;
+            case '\\':
+                putc('\\', stream);
+                putc('\\', stream);
+                break;
+            default:
+                putc(*s, stream);
+        }
+    }
+    return 0;
+}
 
 // Usage: zsqlite_open DB ./sqlite.db
 static int bin_zsqlite_open(char *name, char **args, Options ops, UNUSED(int func))
@@ -115,6 +135,8 @@ static int bin_zsqlite_open(char *name, char **args, Options ops, UNUSED(int fun
     }
     if (OPT_ISSET(ops, 'r')) {
         flags |= SQLITE_OPEN_READONLY;
+    } else {
+        flags |= SQLITE_OPEN_READWRITE | SQLITE_OPEN_CREATE;
     }
 
     if (sqlite3_open_v2(unmeta(args[1]), &pdb, flags, NULL)) {
@@ -171,6 +193,8 @@ static int bin_zsqlite_exec(char *name, char **args, Options ops, int func)
         }
         if (OPT_ISSET(ops, 'r')) {
             flags |= SQLITE_OPEN_READONLY;
+        } else {
+            flags |= SQLITE_OPEN_READWRITE | SQLITE_OPEN_CREATE;
         }
         if (sqlite3_open_v2(unmeta(args[0]), &pdb, flags, NULL)) {
             zwarnnam(name, "failed to open database at %s", args[0]);
@@ -206,7 +230,7 @@ static int bin_zsqlite_exec(char *name, char **args, Options ops, int func)
         setaparam(outvar, colnames);
     } else {
         char *sep = OPT_ISSET(ops, 's') ? OPT_ARG(ops, 's') : "|";
-        bool header = OPT_ISSET(ops, 'h');
+        bool header = OPT_ISSET(ops, 'h'), quote = OPT_ISSET(ops, 'q');
 
         unmetafy(sep, NULL);
 
@@ -223,8 +247,10 @@ static int bin_zsqlite_exec(char *name, char **args, Options ops, int func)
 
         for (int i = 0; i < result.length; i++) {
             for (int j = 0; j < result.collength; j++) {
-                unmetafy(result.coldata[j][i], NULL);
-                printf("%s%s", j == 0 ? "" : sep, result.coldata[j][i]);
+                fputs(j == 0 ? "" : sep, stdout);
+                if (quote) {
+                    quotedputs(result.coldata[j][i], stdout);
+                }
             }
             putchar('\n');
         }
@@ -247,10 +273,10 @@ static int bin_zsqlite_exec(char *name, char **args, Options ops, int func)
 
 
 static struct builtin bintab[] = {
-    BUILTIN("zsqlite_open", 0, bin_zsqlite_open, 2, -1, 0, "t:r", NULL),
-    BUILTIN("zsqlite_exec", 0, bin_zsqlite_exec, 2, -1, BIN_ZSQLITE_EXEC, "hs:v:t:", NULL),
-    BUILTIN("zsqlite_close", 0, bin_zsqlite_close, 1, -1, 0, NULL, NULL),
-    BUILTIN("zsqlite", 0, bin_zsqlite_exec, 2, -1, BIN_ZSQLITE, "hs:v:t:r", NULL),
+    BUILTIN("zsqlite_open", 0, bin_zsqlite_open, 2, 2, 0, "t:r", NULL),
+    BUILTIN("zsqlite_exec", 0, bin_zsqlite_exec, 2, 2, BIN_ZSQLITE_EXEC, "hs:v:", NULL),
+    BUILTIN("zsqlite_close", 0, bin_zsqlite_close, 1, 1, 0, NULL, NULL),
+    BUILTIN("zsqlite", 0, bin_zsqlite_exec, 2, 2, BIN_ZSQLITE, "hs:v:t:rq", NULL),
 };
 
 static struct paramdef patab[] = {
