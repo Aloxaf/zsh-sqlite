@@ -250,6 +250,9 @@ static int bin_zsqlite_exec(char *name, char **args, Options ops, int func)
                 fputs(j == 0 ? "" : sep, stdout);
                 if (quote) {
                     quotedputs(result.coldata[j][i], stdout);
+                } else {
+                    unmetafy(result.coldata[j][i], NULL);
+                    fputs(result.coldata[j][i], stdout);
                 }
             }
             putchar('\n');
