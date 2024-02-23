@@ -37,8 +37,8 @@ zsqlite-build
     - `HANDLE_VAR`: set the variable name to store the database handle
 
 
-- `zsqlite [-rhq] [-t MS] [-s SEP] [-v VAR] FILENAME SQL`
-- `zsqlite_exec [-h] [-s SEP] [-v VAR] HANDLE_VAR SQL`
+- `zsqlite [-rhq] [-t MS] [-s SEP] [-v VAR] FILENAME SQL [PARAMETERS..]`
+- `zsqlite_exec [-h] [-s SEP] [-v VAR] HANDLE_VAR SQL  [PARAMETERS..]`
   - `-r`: read-only
   - `-s SEP`: set the separator between columns, default is '|'
   - `-h`: show column headers
@@ -58,7 +58,7 @@ zsqlite-build
 Alice|20
 Bob|21
 
-> zsqlite_exec -s ":" -h DB 'SELECT * FROM Person'
+> zsqlite_exec -s ":" -h DB 'SELECT * FROM Person WHERE age > ?' 10
 name:age
 Alice:20
 Bob:21

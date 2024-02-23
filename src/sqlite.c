@@ -99,10 +99,9 @@ static sqlite3* gethandle(char *name, char *varname)
     return pdb;
 }
 
-/// Unmetafy and output a string, quoted if contains special characters
-static int quotedputs(char *s, FILE *stream)
+/// puts a string, quoted if contains special characters
+static int quotedputs(const char *s, FILE *stream)
 {
-    unmetafy(s, NULL);
     for (; *s; s++) {
         switch (*s) {
             case '\n':
@@ -120,17 +119,14 @@ static int quotedputs(char *s, FILE *stream)
     return 0;
 }
 
-// Usage: zsqlite_open DB ./sqlite.db
-static int bin_zsqlite_open(char *name, char **args, Options ops, UNUSED(int func))
+static sqlite3* zsqlite_open(char *name, char *database, Options ops)
 {
     sqlite3 *pdb;
-    int flags = 0;
-    int busy_timeout = 10;
-
+    int busy_timeout = 10, flags = 0;
     if (OPT_ISSET(ops, 't')) {
         busy_timeout = (int)getposlong(OPT_ARG(ops, 't'), name);
         if (busy_timeout < -1) {
-            return 1;
+            return NULL;
         }
     }
     if (OPT_ISSET(ops, 'r')) {
@@ -138,13 +134,19 @@ static int bin_zsqlite_open(char *name, char **args, Options ops, UNUSED(int fun
     } else {
         flags |= SQLITE_OPEN_READWRITE | SQLITE_OPEN_CREATE;
     }
-
-    if (sqlite3_open_v2(unmeta(args[1]), &pdb, flags, NULL)) {
-        zwarnnam(name, "failed to open database at %s", args[1]);
-        return 1;
+    if (sqlite3_open_v2(unmeta(database), &pdb, flags, NULL)) {
+        zwarnnam(name, "failed to open database at %s", database);
+        return NULL;
     }
-
     sqlite3_busy_timeout(pdb, busy_timeout);
+
+    return pdb;
+}
+
+// Usage: zsqlite_open DB ./sqlite.db
+static int bin_zsqlite_open(char *name, char **args, Options ops, UNUSED(int func))
+{
+    sqlite3 *pdb = zsqlite_open(name, args[1], ops);
 
     char buf[21];
     sprintf(buf, "%ld", (long)pdb);
@@ -172,114 +174,123 @@ static int bin_zsqlite_close(char *name, char **args, Options ops, UNUSED(int fu
 }
 
 // Usage:
-// zsqlite_exec DB 'SELECT 1'
+// zsqlite_exec DB 'SELECT ?' 1
 // zsqlite_exec DB -v out_var 'SELECT 1'
 // zsqlite_exec DB -s ':' -h 'SELECT 1'
 static int bin_zsqlite_exec(char *name, char **args, Options ops, int func)
 {
-    sqlite3 *pdb = NULL;
+    int rc = 0;
+    sqlite3 *db = NULL;
     if (func == BIN_ZSQLITE_EXEC) {
-        if ((pdb = gethandle(name, args[0])) == NULL) {
+        if ((db = gethandle(name, args[0])) == NULL) {
             return 1;
         }
     } else {
-        // TODO: duplicate code
-        int busy_timeout = 10, flags = 0;
-        if (OPT_ISSET(ops, 't')) {
-            busy_timeout = (int)getposlong(OPT_ARG(ops, 't'), name);
-            if (busy_timeout < -1) {
-                return 1;
-            }
-        }
-        if (OPT_ISSET(ops, 'r')) {
-            flags |= SQLITE_OPEN_READONLY;
-        } else {
-            flags |= SQLITE_OPEN_READWRITE | SQLITE_OPEN_CREATE;
-        }
-        if (sqlite3_open_v2(unmeta(args[0]), &pdb, flags, NULL)) {
-            zwarnnam(name, "failed to open database at %s", args[0]);
+        if ((db = zsqlite_open(name, args[0], ops)) == NULL)  {
             return 1;
         }
-        sqlite3_busy_timeout(pdb, busy_timeout);
     }
 
     char *sql = unmetafy(args[1], NULL);
+    sqlite3_stmt *stmt = NULL;
 
-    struct sqlite_result result = { 0, 0, 0, NULL, NULL};
-    char *errmsg;
-    if (sqlite3_exec(pdb, sql, sqlite_callback, &result, &errmsg) != SQLITE_OK) {
-        char *merrmsg = ztrdup_metafy(errmsg);
-        zwarnnam(name, "failed to execute sql: %s", merrmsg);
-        sqlite3_free(errmsg);
-        free(merrmsg);
-        if (func == BIN_ZSQLITE) {
-            sqlite3_close(pdb);
-        }
-        return 1;
+    if (sqlite3_prepare_v2(db, sql, -1, &stmt, NULL) != SQLITE_OK) {
+        zwarnnam(name, "failed to prepare sql: %s", ztrdup_metafy(sqlite3_errmsg(db)));
+        rc = 1;
+        goto end;
     }
 
-    if (OPT_ISSET(ops, 'v')) {
-        char *outvar = OPT_ARG(ops, 'v');
-        char **colnames = zshcalloc((result.collength + 1) * sizeof(char *));
-        for (int i = 0; i < result.collength; i++) {
-            colnames[i] = zshcalloc(512 * sizeof(char));
-            sprintf(colnames[i], "%s_%s", outvar, result.colname[i]);
-            setaparam(colnames[i], result.coldata[i]);
-            free(result.colname[i]);
+    for (int i = 2; args[i]; i++) {
+        unmetafy(args[i], NULL);
+        if (sqlite3_bind_text(stmt, i - 1, args[i], -1, SQLITE_TRANSIENT) != SQLITE_OK) {
+            zwarnnam(name, "failed to bind parameter %d: %s", i, ztrdup_metafy(sqlite3_errmsg(db)));
+            rc = 1;
+            goto end;
         }
-        setaparam(outvar, colnames);
-    } else {
-        char *sep = OPT_ISSET(ops, 's') ? OPT_ARG(ops, 's') : "|";
-        bool header = OPT_ISSET(ops, 'h'), quote = OPT_ISSET(ops, 'q');
+    }
 
-        unmetafy(sep, NULL);
+    int nCol = 0;
+    char **azCols = NULL, **azVars = NULL;
+    bool isColsInit = false;
 
-        for (int i = 0; i < result.collength; i++) {
-            if (header) {
-                unmetafy(result.colname[i], NULL);
-                printf("%s%s", i == 0 ? "" : sep, result.colname[i]);
+    struct sqlite_result result = { 0, 0, 0, NULL, NULL};
+
+    char *sep = OPT_ISSET(ops, 's') ? OPT_ARG(ops, 's') : "|";
+    bool printHeader = OPT_ISSET(ops, 'h'), quoteResult = OPT_ISSET(ops, 'q'), writeVar = OPT_ISSET(ops, 'v');
+    unmetafy(sep, NULL);
+
+    while (sqlite3_step(stmt) == SQLITE_ROW) {
+        if (!isColsInit) {
+            nCol = sqlite3_column_count(stmt);
+            azCols = zshcalloc((2 * nCol + 1) * sizeof(char *));
+            for (int i = 0; i < nCol; i++) {
+                azCols[i] = (char *) sqlite3_column_name(stmt, i);
             }
-            free(result.colname[i]);
-        }
-        if (header) {
-            putchar('\n');
+            isColsInit = true;
+
+            if (!writeVar && printHeader) {
+                for (int i = 0; i < nCol; i++) {
+                    printf("%s%s", i == 0 ? "" : sep, azCols[i]);
+                }
+                putchar('\n');
+            }
         }
 
-        for (int i = 0; i < result.length; i++) {
-            for (int j = 0; j < result.collength; j++) {
-                fputs(j == 0 ? "" : sep, stdout);
-                if (quote) {
-                    quotedputs(result.coldata[j][i], stdout);
+        azVars = &azCols[nCol];
+        for (int i = 0; i < nCol; i++) {
+            azVars[i] = (char *) sqlite3_column_text(stmt, i);
+            if (azVars[i] == NULL) {
+                // TODO: custom NUL value
+                azVars[i] = ztrdup("");
+            }
+        }
+
+        if (writeVar) {
+            sqlite_callback(&result, nCol, azVars, azCols);
+        } else {
+            for (int i = 0; i < nCol; i++) {
+                fputs(i == 0 ? "" : sep, stdout);
+                if (quoteResult) {
+                    quotedputs(azVars[i], stdout);
                 } else {
-                    unmetafy(result.coldata[j][i], NULL);
-                    fputs(result.coldata[j][i], stdout);
+                    fputs(azVars[i], stdout);
                 }
             }
             putchar('\n');
         }
+    }
+    free(azCols);
+
+    if (OPT_ISSET(ops, 'v')) {
+        char *oVar = OPT_ARG(ops, 'v');
+        char **colNames = zshcalloc((result.collength + 1) * sizeof(char *));
         for (int i = 0; i < result.collength; i++) {
-            if (result.coldata[i]) {
-                freearray(result.coldata[i]);
-            }
+            colNames[i] = tricat(oVar, "_", result.colname[i]);
+            setaparam(colNames[i], result.coldata[i]);
+            free(result.colname[i]);
+        }
+        setaparam(oVar, colNames);
+        free(result.coldata);
+        free(result.colname);
+    }
+
+end:
+    if (func == BIN_ZSQLITE) {
+        if (db) {
+            sqlite3_close(db);
         }
     }
+    sqlite3_finalize(stmt);
 
-    if (func == BIN_ZSQLITE) {
-        sqlite3_close(pdb);
-    }
-
-    free(result.coldata);
-    free(result.colname);
-
-    return 0;
+    return rc;
 }
 
 
 static struct builtin bintab[] = {
     BUILTIN("zsqlite_open", 0, bin_zsqlite_open, 2, 2, 0, "t:r", NULL),
-    BUILTIN("zsqlite_exec", 0, bin_zsqlite_exec, 2, 2, BIN_ZSQLITE_EXEC, "hs:v:q", NULL),
+    BUILTIN("zsqlite_exec", 0, bin_zsqlite_exec, 2, -1, BIN_ZSQLITE_EXEC, "hs:v:q", NULL),
     BUILTIN("zsqlite_close", 0, bin_zsqlite_close, 1, 1, 0, NULL, NULL),
-    BUILTIN("zsqlite", 0, bin_zsqlite_exec, 2, 2, BIN_ZSQLITE, "hs:v:t:rq", NULL),
+    BUILTIN("zsqlite", 0, bin_zsqlite_exec, 2, -1, BIN_ZSQLITE, "hs:v:t:rq", NULL),
 };
 
 static struct paramdef patab[] = {
