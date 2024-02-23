@@ -50,13 +50,14 @@
 
  zsqlite_exec -v OUT_VAR DB 'SELECT * FROM Person WHERE;'
 1:bad SQL
-?(eval):zsqlite_exec:1: failed to execute sql: near ";": syntax error
+?(eval):zsqlite_exec:1: failed to prepare sql: near ";": syntax error
 
 
  zsqlite_exec DB 'CREATE TABLE 用户(姓名 TEXT, 年龄 INT)'
  zsqlite_exec DB 'INSERT INTO 用户 VALUES("小明", 6)'
- zsqlite_exec DB 'SELECT * FROM 用户'
- zsqlite_exec -v OUT_VAR DB 'SELECT * FROM 用户'
+ zsqlite_exec DB 'INSERT INTO 用户 VALUES("小刚", 9)'
+ zsqlite_exec DB 'SELECT * FROM 用户 WHERE 姓名 = "小明"'
+ zsqlite_exec -v OUT_VAR DB 'SELECT * FROM 用户 WHERE 姓名 = "小明"'
  echo $OUT_VAR
  echo $OUT_VAR_姓名
  echo $OUT_VAR_年龄
@@ -66,6 +67,9 @@
 >小明
 >6
 
+ zsqlite_exec DB 'SELECT * FROM 用户 WHERE 年龄 > ?' 8
+0:bind parameters
+>小刚|9
 
  zsqlite_close DB
  zsqlite_exec DB 'CREATE TABLE Person(name TEXT, age INT)'
@@ -78,4 +82,16 @@
 
  zsqlite ':memory:' 'S错误'
 1:invalid command
-?(eval):zsqlite:1: failed to execute sql: near "S错误": syntax error
+?(eval):zsqlite:1: failed to prepare sql: near "S错误": syntax error
+
+ zsqlite -q ':memory:' $'SELECT "a\nb"'
+ zsqlite ':memory:' $'SELECT "a\nb"'
+0:quote output
+>a\nb
+>a
+>b
+
+ zsqlite -q ':memory:' 'SELECT NULL'
+0:null
+>
+
