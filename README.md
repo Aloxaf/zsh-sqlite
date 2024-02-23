@@ -30,13 +30,14 @@ zsqlite-build
 
 ## Usage
 
-- `zsqlite_open [-t MS] HANDLE_VAR FILENAME`
+- `zsqlite_open [-t MS] [-r] HANDLE_VAR FILENAME`
+    - `-r`: read-only
 - `zsqlite_close HANDLE_VAR`
     - `-t MS`: set sqlite3 busy timeout, default is 10
     - `HANDLE_VAR`: set the variable name to store the database handle
 
 
-- `zsqlite [-t MS] [-s SEP] [-h] [-v VAR] FILENAME SQL`
+- `zsqlite [-t MS] [-r] [-s SEP] [-h] [-v VAR] FILENAME SQL`
 - `zsqlite_exec [-s SEP] [-h] [-v VAR] HANDLE_VAR SQL`
   - `-s SEP`: set the separator between columns, default is '|'
   - `-h`: show column headers

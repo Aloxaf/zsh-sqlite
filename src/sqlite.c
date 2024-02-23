@@ -104,17 +104,22 @@ static sqlite3* gethandle(char *name, char *varname)
 static int bin_zsqlite_open(char *name, char **args, Options ops, UNUSED(int func))
 {
     sqlite3 *pdb;
-    if (sqlite3_open(unmeta(args[1]), &pdb)) {
-        zwarnnam(name, "failed to open database at %s", args[1]);
-        return 1;
-    }
-
+    int flags = 0;
     int busy_timeout = 10;
+
     if (OPT_ISSET(ops, 't')) {
         busy_timeout = (int)getposlong(OPT_ARG(ops, 't'), name);
         if (busy_timeout < -1) {
             return 1;
         }
+    }
+    if (OPT_ISSET(ops, 'r')) {
+        flags |= SQLITE_OPEN_READONLY;
+    }
+
+    if (sqlite3_open_v2(unmeta(args[1]), &pdb, flags, NULL)) {
+        zwarnnam(name, "failed to open database at %s", args[1]);
+        return 1;
     }
 
     sqlite3_busy_timeout(pdb, busy_timeout);
@@ -156,16 +161,20 @@ static int bin_zsqlite_exec(char *name, char **args, Options ops, int func)
             return 1;
         }
     } else {
-        if (sqlite3_open(unmeta(args[0]), &pdb)) {
-            zwarnnam(name, "failed to open database at %s", args[0]);
-            return 1;
-        }
-        int busy_timeout = 10;
+        // TODO: duplicate code
+        int busy_timeout = 10, flags = 0;
         if (OPT_ISSET(ops, 't')) {
             busy_timeout = (int)getposlong(OPT_ARG(ops, 't'), name);
             if (busy_timeout < -1) {
                 return 1;
             }
+        }
+        if (OPT_ISSET(ops, 'r')) {
+            flags |= SQLITE_OPEN_READONLY;
+        }
+        if (sqlite3_open_v2(unmeta(args[0]), &pdb, flags, NULL)) {
+            zwarnnam(name, "failed to open database at %s", args[0]);
+            return 1;
         }
         sqlite3_busy_timeout(pdb, busy_timeout);
     }
@@ -238,10 +247,10 @@ static int bin_zsqlite_exec(char *name, char **args, Options ops, int func)
 
 
 static struct builtin bintab[] = {
-    BUILTIN("zsqlite_open", 0, bin_zsqlite_open, 2, -1, 0, "t:", NULL),
+    BUILTIN("zsqlite_open", 0, bin_zsqlite_open, 2, -1, 0, "t:r", NULL),
     BUILTIN("zsqlite_exec", 0, bin_zsqlite_exec, 2, -1, BIN_ZSQLITE_EXEC, "hs:v:t:", NULL),
     BUILTIN("zsqlite_close", 0, bin_zsqlite_close, 1, -1, 0, NULL, NULL),
-    BUILTIN("zsqlite", 0, bin_zsqlite_exec, 2, -1, BIN_ZSQLITE, "hs:v:t:", NULL),
+    BUILTIN("zsqlite", 0, bin_zsqlite_exec, 2, -1, BIN_ZSQLITE, "hs:v:t:r", NULL),
 };
 
 static struct paramdef patab[] = {
@@ -278,7 +287,7 @@ int enables_(Module m, int** enables)
 int boot_(UNUSED(Module m))
 {
     if (sqlite_module_version == NULL) {
-        sqlite_module_version = ztrdup("0.2.3");
+        sqlite_module_version = ztrdup("0.3.0");
     }
     return 0;
 }
